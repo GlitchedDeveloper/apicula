@@ -53,7 +53,7 @@ impl<'a> Builder<'a> {
                 vertices: vec![],
             },
             cur_matrix: 0,
-            matrix_stack: vec![None; 32],
+            matrix_stack: vec![None; 256],
         }
     }
 
@@ -113,7 +113,8 @@ impl<'a> Builder<'a> {
     fn draw(&mut self, piece_idx: u8) {
         let piece = &self.model.pieces[piece_idx as usize];
         use crate::nds::gpu_cmds::{CmdParser, GpuCmd};
-        let interpreter = CmdParser::new(&piece.gpu_commands);
+        let scale = if self.model.need_to_scale { self.model.up_scale } else { 1.0 };
+        let interpreter = CmdParser::new(&piece.gpu_commands, scale);
 
         for cmd_res in interpreter {
             if cmd_res.is_err() { break; }

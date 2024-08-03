@@ -83,7 +83,7 @@ impl Database {
         for file_id in 0..self.file_paths.len() {
             debug!("Processing {:?}...", self.file_paths[file_id]);
 
-            let buf = match std::fs::read(&self.file_paths[file_id]) {
+            let mut buf = match std::fs::read(&self.file_paths[file_id]) {
                 Ok(buf) => buf,
                 Err(e) =>{
                     error!("file-system error reading {}: {}",
@@ -92,6 +92,42 @@ impl Database {
                     continue;
                 }
             };
+
+            //Decompress LZ77
+            if buf[0] == 0x10 {
+                use crate::lz77::decompress;
+                match decompress(&buf) {
+                    Ok(decompressed_data) => {
+                        buf = decompressed_data;
+                    }
+                    Err(e) => {
+                        error!("LZ77 Decompression failed: {}: {}", self.file_paths[file_id].to_string_lossy(), e);
+                        continue;
+                    }
+                }
+            }
+
+            //Remove NMDP Header
+            if buf.starts_with(b"NMDP") {
+                let mut found = false;
+                let mut new_buf = Vec::new();
+                let stamps = [b"BMD0", b"BTX0", b"BCA0", b"BTP0", b"BTA0"];
+            
+                for i in 4..buf.len() {
+                    if stamps.iter().any(|&pattern| buf[i..].starts_with(pattern)) {
+                        new_buf = buf[i..].to_vec();
+                        found = true;
+                        break;
+                    }
+                }
+            
+                if found {
+                    buf = new_buf;
+                } else {
+                    error!("Couldn't remove NMDP header: {}: Unable to find one of: BMD0, BTX0, BCA0, BTP0, BTA0", self.file_paths[file_id].to_string_lossy());
+                    continue;
+                }
+            }
 
             use crate::nitro::container::read_container;
             match read_container(Cur::new(&buf)) {

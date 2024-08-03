@@ -18,9 +18,10 @@ pub struct Model {
     pub render_ops: Vec<Op>,
     pub up_scale: f64,
     pub down_scale: f64,
+    pub need_to_scale: bool,
 }
 
-pub fn read_model(cur: Cur, name: Name) -> Result<Model> {
+pub fn read_model(cur: Cur, name: Name, need_to_scale: bool) -> Result<Model> {
     debug!("model: {:?}", name);
 
     fields!(cur, model {
@@ -60,7 +61,7 @@ pub fn read_model(cur: Cur, name: Name) -> Result<Model> {
 
     let model = Model {
         name, materials, pieces, objects, inv_binds,
-        render_ops, up_scale, down_scale,
+        render_ops, up_scale, down_scale, need_to_scale,
     };
 
     validate_render_ops(&model)?;

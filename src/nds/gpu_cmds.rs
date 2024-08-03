@@ -80,15 +80,19 @@ pub struct CmdParser<'a> {
 
     /// Whether we're done. Always set after an error.
     done: bool,
+
+    /// Forced Scaling For Model.
+    forced_scale: f64,
 }
 
 impl<'a> CmdParser<'a> {
-    pub fn new(cmds: &[u8]) -> CmdParser {
+    pub fn new(cmds: &[u8], scale: f64) -> CmdParser {
         CmdParser {
             opcode_fifo: &cmds[0..0],
             buf: cmds,
             vertex: Point3::new(0.0, 0.0, 0.0),
             done: false,
+            forced_scale: scale,
         }
     }
 }
@@ -136,18 +140,18 @@ impl<'a> Iterator for CmdParser<'a> {
         let params = View::from_buf(&self.buf[0 .. num_param_bytes]);
         self.buf = &self.buf[num_param_bytes ..];
 
-        Some(parse(self, opcode, params))
+        Some(parse(self, opcode, params, self.forced_scale))
     }
 }
 
-fn parse(state: &mut CmdParser, opcode: u8, params: View<u32>) -> Result<GpuCmd> {
+fn parse(state: &mut CmdParser, opcode: u8, params: View<u32>, forced_scale: f64) -> Result<GpuCmd> {
     Ok(match opcode {
         // NOP
         0x00 => GpuCmd::Nop,
 
         // MTX_RESTORE - Restore Current Matrix from Stack
         0x14 => {
-            let idx = params.nth(0) & 31;
+            let idx = params.nth(0);
             GpuCmd::Restore { idx }
         }
 
@@ -172,9 +176,9 @@ fn parse(state: &mut CmdParser, opcode: u8, params: View<u32>) -> Result<GpuCmd>
         0x23 => {
             let p0 = params.nth(0);
             let p1 = params.nth(1);
-            let x = fix16(p0.bits(0, 16) as u16, 1, 3, 12);
-            let y = fix16(p0.bits(16, 32) as u16, 1, 3, 12);
-            let z = fix16(p1.bits(0, 16) as u16, 1, 3, 12);
+            let x = fix16(p0.bits(0, 16) as u16, 1, 3, 12) * forced_scale;
+            let y = fix16(p0.bits(16, 32) as u16, 1, 3, 12) * forced_scale;
+            let z = fix16(p1.bits(0, 16) as u16, 1, 3, 12) * forced_scale;
             let position = Point3::new(x, y, z);
             state.vertex = position;
             GpuCmd::Vertex { position }
@@ -183,9 +187,9 @@ fn parse(state: &mut CmdParser, opcode: u8, params: View<u32>) -> Result<GpuCmd>
         // VTX_10 - Set Vertex XYZ Coordinates
         0x24 => {
             let p = params.nth(0);
-            let x = fix16(p.bits(0, 10) as u16, 1, 3, 6);
-            let y = fix16(p.bits(10, 20) as u16, 1, 3, 6);
-            let z = fix16(p.bits(20, 30) as u16, 1, 3, 6);
+            let x = fix16(p.bits(0, 10) as u16, 1, 3, 6) * forced_scale;
+            let y = fix16(p.bits(10, 20) as u16, 1, 3, 6) * forced_scale;
+            let z = fix16(p.bits(20, 30) as u16, 1, 3, 6) * forced_scale;
             let position = Point3::new(x, y, z);
             state.vertex = position;
             GpuCmd::Vertex { position }
@@ -194,8 +198,8 @@ fn parse(state: &mut CmdParser, opcode: u8, params: View<u32>) -> Result<GpuCmd>
         // VTX_XY - Set Vertex XY Coordinates
         0x25 => {
             let p = params.nth(0);
-            let x = fix16(p.bits(0, 16) as u16, 1, 3, 12);
-            let y = fix16(p.bits(16, 32) as u16, 1, 3, 12);
+            let x = fix16(p.bits(0, 16) as u16, 1, 3, 12) * forced_scale;
+            let y = fix16(p.bits(16, 32) as u16, 1, 3, 12) * forced_scale;
             let position = Point3::new(x, y, state.vertex.z);
             state.vertex = position;
             GpuCmd::Vertex { position }
@@ -204,8 +208,8 @@ fn parse(state: &mut CmdParser, opcode: u8, params: View<u32>) -> Result<GpuCmd>
         // VTX_XZ - Set Vertex XZ Coordinates
         0x26 => {
             let p = params.nth(0);
-            let x = fix16(p.bits(0, 16) as u16, 1, 3, 12);
-            let z = fix16(p.bits(16, 32) as u16, 1, 3, 12);
+            let x = fix16(p.bits(0, 16) as u16, 1, 3, 12) * forced_scale;
+            let z = fix16(p.bits(16, 32) as u16, 1, 3, 12) * forced_scale;
             let position = Point3::new(x, state.vertex.y, z);
             state.vertex = position;
             GpuCmd::Vertex { position }
@@ -214,8 +218,8 @@ fn parse(state: &mut CmdParser, opcode: u8, params: View<u32>) -> Result<GpuCmd>
         // VTX_YZ - Set Vertex YZ Coordinates
         0x27 => {
             let p = params.nth(0);
-            let y = fix16(p.bits(0, 16) as u16, 1, 3, 12);
-            let z = fix16(p.bits(16, 32) as u16, 1, 3, 12);
+            let y = fix16(p.bits(0, 16) as u16, 1, 3, 12) * forced_scale;
+            let z = fix16(p.bits(16, 32) as u16, 1, 3, 12) * forced_scale;
             let position = Point3::new(state.vertex.x, y, z);
             state.vertex = position;
             GpuCmd::Vertex { position }
@@ -227,9 +231,9 @@ fn parse(state: &mut CmdParser, opcode: u8, params: View<u32>) -> Result<GpuCmd>
             // Differences are 10-bit numbers, scaled by 1/2^3 to put them
             // in the same 1,3,12 format as the others VTX commands.
             let scale = (0.5f64).powi(3);
-            let dx = scale * fix16(p.bits(0, 10) as u16, 1, 0, 9);
-            let dy = scale * fix16(p.bits(10, 20) as u16, 1, 0, 9);
-            let dz = scale * fix16(p.bits(20, 30) as u16, 1, 0, 9);
+            let dx = scale * fix16(p.bits(0, 10) as u16, 1, 0, 9) * forced_scale;
+            let dy = scale * fix16(p.bits(10, 20) as u16, 1, 0, 9) * forced_scale;
+            let dz = scale * fix16(p.bits(20, 30) as u16, 1, 0, 9) * forced_scale;
             let position = state.vertex + vec3(dx, dy, dz);
             state.vertex = position;
             GpuCmd::Vertex { position }
@@ -257,9 +261,9 @@ fn parse(state: &mut CmdParser, opcode: u8, params: View<u32>) -> Result<GpuCmd>
         // NORMAL - Set Normal Vector
         0x21 => {
             let p = params.nth(0);
-            let x = fix32(p.bits(0, 10), 1, 0, 9);
-            let y = fix32(p.bits(10, 20), 1, 0, 9);
-            let z = fix32(p.bits(20, 30), 1, 0, 9);
+            let x = fix32(p.bits(0, 10), 1, 0, 9) * forced_scale;
+            let y = fix32(p.bits(10, 20), 1, 0, 9) * forced_scale;
+            let z = fix32(p.bits(20, 30), 1, 0, 9) * forced_scale;
             let normal = vec3(x, y, z);
             GpuCmd::Normal { normal }
         }

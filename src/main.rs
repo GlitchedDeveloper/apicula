@@ -27,6 +27,7 @@ mod skeleton;
 mod logger;
 mod connection;
 mod version;
+mod lz77;
 
 use errors::Result;
 

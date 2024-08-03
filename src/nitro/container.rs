@@ -84,6 +84,7 @@ fn read_section(cont: &mut Container, cur: Cur) -> Result<()> {
 // An MDL is a container for models.
 fn add_mdl(cont: &mut Container, cur: Cur) -> Result<()> {
     use crate::nitro::model::read_model;
+    use crate::nitro::info_block::check_info;
 
     fields!(cur, MDL0 {
         stamp: [u8; 4],
@@ -93,10 +94,18 @@ fn add_mdl(cont: &mut Container, cur: Cur) -> Result<()> {
     check!(stamp == b"MDL0")?;
 
     for (off, name) in info_block::read::<u32>(end)? {
-        match read_model(cur + off, name) {
+        match check_info(end) {
+            Ok(is_normal) => {
+                match read_model(cur + off, name, !is_normal) {
             Ok(model) => cont.models.push(model),
+                    Err(e) => error!("error on model {}: {}", name, e)
+                }
+            },
             Err(e) => {
-                error!("error on model {}: {}", name, e);
+                match read_model(cur + off, name, false) {
+                    Ok(model) => cont.models.push(model),
+                    Err(e) => error!("error on model {}: {}", name, e)
+                }
             }
         }
     }

@@ -14,9 +14,10 @@ use crate::util::view::{View, Viewable};
 pub type Iterator<'a, T> = Zip<View<'a, T>, View<'a, Name>>;
 
 /// Returns an iterator over (`T`, name) pairs in an info block.
-pub fn read<T>(cur: Cur) -> Result<Iterator<T>> where
+pub fn read<T>(mut cur: Cur) -> Result<Iterator<T>> where
     T: Viewable + Debug
 {
+    let pos = cur.pos();
     fields!(cur, info_block {
         dummy: u8,
         count: u8,
@@ -35,7 +36,44 @@ pub fn read<T>(cur: Cur) -> Result<Iterator<T>> where
     });
 
     check!(dummy == 0)?;
-    check!(size_of_datum as usize == <T as Viewable>::size())?;
-
+    if size_of_datum as usize != <T as Viewable>::size() {
+        cur.jump_to(pos);
+        fields!(cur, info_block {
+            dummy: u8,
+            count: u8,
+            header_size: u16,
+            unknown_subheader_size: u16,
+            data_off: u16
+        });
+        cur.jump_to(pos + data_off as usize);
+        fields!(cur, info_block {
+            size_of_datum: u16,
+            data_section_size: u16,
+            data: [T; count],
+            names: [Name; count],
+        });
+        Ok(data.zip(names))
+    } else {
     Ok(data.zip(names))
+}
+}
+
+pub fn check_info(cur: Cur) -> Result<bool> {
+    fields!(cur, info_block {
+        dummy: u8,
+        count: u8,
+        header_size: u16,
+
+        unknown_subheader_size: u16,
+        unknown_section_size: u16,
+        unknown_constant: u32,
+        unknown_data: [u32; count],
+
+        size_of_datum: u16,
+        data_section_size: u16,
+        data: [u32; count],
+
+        names: [Name; count],
+    });
+    Ok(size_of_datum as usize == 4)
 }

@@ -118,7 +118,7 @@ impl GpuState {
     fn new() -> GpuState {
         GpuState {
             cur_matrix: Matrix4::one(),
-            matrix_stack: vec![Matrix4::one(); 32],
+            matrix_stack: vec![Matrix4::one(); 256],
             texture_matrix: Matrix4::one(),
         }
     }
@@ -366,7 +366,8 @@ impl<'a, 'b> Builder<'a, 'b> {
 
 fn run_gpu_cmds(b: &mut Builder, commands: &[u8]) {
     use crate::nds::gpu_cmds::{CmdParser, GpuCmd};
-    let interpreter = CmdParser::new(commands);
+    let scale = if b.model.need_to_scale { b.model.up_scale } else { 1.0 };
+    let interpreter = CmdParser::new(commands, scale);
 
     for cmd_res in interpreter {
         if cmd_res.is_err() { break; }
