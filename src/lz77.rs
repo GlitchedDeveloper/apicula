@@ -1,4 +1,4 @@
-//Based on: https://github.com/neoxephon/darthnemesis/blob/master/DarthNemesis/CompressionManager.cs
+//Based on: https://code.google.com/archive/p/darthnemesis
 pub fn decompress(compressed_data: &Vec<u8>) -> Result<Vec<u8>, String> {
     if compressed_data[0] == 0x10 {
         let size = compressed_data[1] as usize + ((compressed_data[2] as usize) << 8) + ((compressed_data[3] as usize) << 16);

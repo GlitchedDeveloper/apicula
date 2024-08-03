@@ -24,9 +24,9 @@ DS games.
 apicula recognized these file types (called Nitro files). See [the
 wiki](https://github.com/scurest/apicula/wiki/FILETYPES) for more info.
 
-* `.nsbmd`, `.BMD`, or `.BMD0`: 3D models, textures, palettes
-* `.nsbtx`, `.BTX`, or `.BTX0`: textures, palettes
-* `.nsbca`, `.BCA`, or `.BCA0`: joint animations
+* `.nsbmd`, `.BMD`, `.BMD0`, `.NMDP`, or `.NMDP.LZ`: 3D models, textures, palettes
+* `.nsbtx`, `.BTX`, `.BTX0`, `.NTXP`, or `.NTXP.LZ`: textures, palettes
+* `.nsbca`, `.BCA`, `.BCA0`, `.NCAP`, or `.NCAP.LZ`: joint animations
 * `.nsbtp`, `.BTP`, or `.BTP0`: pattern animations (flipbook-type)
 * `.nsbta`, `.BTA`, or `.BTA0`: material animations (experimental!!)
 
@@ -44,7 +44,7 @@ Importing apicula's COLLADA files has been tested in Blender and Maya.
 
 ### Downloads
 
-* [Download for Windows, 64-bit](https://github.com/scurest/apicula/releases/download/continuous/apicula-latest-windows.zip)
+* [Download for Windows, 64-bit](https://github.com/GlitchedDeveloper/apicula/releases/download/FFIV-FFIVTAY-1.0/apicula-latest-windows.zip)
 
 This is built automatically off the latest `master`. You may need one of the Visual Studio
 Redistributable packages installed.
@@ -55,7 +55,7 @@ Redistributable packages installed.
 Make sure [Rust (1.34+) is installed](https://rustup.rs/) and [build the usual
 way](https://doc.rust-lang.org/cargo/guide/working-on-an-existing-project.html)
 
-    $ git clone https://github.com/scurest/apicula.git
+    $ git clone https://github.com/GlitchedDeveloper/apicula.git
     $ cd apicula
     $ cargo b --release
     $ target/release/apicula -V
@@ -113,6 +113,7 @@ importing them into Blender.
 * **[deSmuME](http://desmume.org/)**, for the DS debugger. `_3D_LOG_EXEC` and the GDB stub were
   invaluable.
 
+* **[darthnemesis](https://code.google.com/archive/p/darthnemesis/)**, for BatchLZ77
 
 ### License
 
